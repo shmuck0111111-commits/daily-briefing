@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""daily_briefing.py - fuer GitHub Actions"""
+"""daily_briefing.py - Taegliches News-Briefing via RSS + Wetter, kein API-Key"""
 
 import requests
 import xml.etree.ElementTree as ET
@@ -13,23 +13,49 @@ import re
 warnings.filterwarnings("ignore")
 
 FEEDS = [
-    {"name":"Tagesschau","country":"DE","emoji":"🇩🇪","urls":[
+    {"name":"Tagesschau","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
         "https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml",
         "https://www.tagesschau.de/xml/rss2/"]},
-    {"name":"Spiegel Online","country":"DE","emoji":"🇩🇪","urls":[
+    {"name":"Spiegel Online","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
         "https://www.spiegel.de/schlagzeilen/tops/index.rss",
         "https://www.spiegel.de/schlagzeilen/index.rss"]},
-    {"name":"BBC News","country":"EN","emoji":"🇬🇧","urls":[
+    {"name":"BBC News","country":"EN","emoji":"\U0001f1ec\U0001f1e7","urls":[
         "https://feeds.bbci.co.uk/news/world/rss.xml",
         "https://feeds.bbci.co.uk/news/rss.xml"]},
-    {"name":"Deutsche Welle","country":"EN","emoji":"🌐","urls":[
+    {"name":"Deutsche Welle","country":"EN","emoji":"\U0001f310","urls":[
         "https://rss.dw.com/xml/rss-en-all",
         "https://rss.dw.com/xml/rss-en-top"]},
 ]
 
+# WMO Wettercodes -> Emoji + Text
+WMO_CODES = {
+    0:"☀️ Klar", 1:"🌤️ Meist klar", 2:"⛅ Teilw. bewölkt", 3:"☁️ Bedeckt",
+    45:"🌫️ Nebel", 48:"🌫️ Nebel", 51:"🌦️ Nieselregen", 53:"🌦️ Nieselregen",
+    55:"🌧️ Nieselregen", 61:"🌧️ Regen", 63:"🌧️ Regen", 65:"🌧️ Starkregen",
+    71:"🌨️ Schnee", 73:"🌨️ Schnee", 75:"❄️ Starker Schnee",
+    80:"🌦️ Schauer", 81:"🌧️ Schauer", 82:"⛈️ Starke Schauer",
+    95:"⛈️ Gewitter", 96:"⛈️ Gewitter", 99:"⛈️ Gewitter",
+}
+
+CITIES = [
+    {"name":"Frankfurt","lat":50.11,"lon":8.68},
+    {"name":"Hamburg",  "lat":53.55,"lon":10.00},
+    {"name":"Berlin",   "lat":52.52,"lon":13.41},
+    {"name":"München",  "lat":48.14,"lon":11.58},
+]
+
 MAX_ITEMS = 12
 MAX_HOURS = 24
-OUTPUT_FILE = "docs/index.html"
+NEW_HOURS = 2  # NEU-Badge nur wenn juenger als 2 Stunden
+
+if os.path.isdir("docs"):
+    OUTPUT_FILE = "docs/index.html"
+else:
+    _home = os.path.expanduser("~")
+    _desktop = os.path.join(_home, "Desktop")
+    if not os.path.isdir(_desktop):
+        _desktop = _home
+    OUTPUT_FILE = os.path.join(_desktop, "daily_briefing.html")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -49,6 +75,52 @@ KEYWORDS = [
     "parliament","president","policy","budget","crisis","tariff",
     "gdp","recession","fed","ecb","interest","iran","israel","attack",
 ]
+
+WOCHENTAGE = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"]
+MONATE = ["Januar","Februar","M\u00e4rz","April","Mai","Juni",
+          "Juli","August","September","Oktober","November","Dezember"]
+
+# ── Wetter ────────────────────────────────────────────────────────────────────
+
+def fetch_weather(cities):
+    results = []
+    for c in cities:
+        try:
+            url = (
+                f"https://api.open-meteo.com/v1/forecast"
+                f"?latitude={c['lat']}&longitude={c['lon']}"
+                f"&current=temperature_2m,weathercode,windspeed_10m"
+                f"&wind_speed_unit=kmh&timezone=Europe%2FBerlin"
+            )
+            r = requests.get(url, timeout=8)
+            r.raise_for_status()
+            d = r.json()["current"]
+            code  = d.get("weathercode", 0)
+            temp  = round(d.get("temperature_2m", 0))
+            wind  = round(d.get("windspeed_10m", 0))
+            label = WMO_CODES.get(code, "🌡️")
+            results.append({"name": c["name"], "temp": temp, "wind": wind, "label": label, "ok": True})
+        except Exception:
+            results.append({"name": c["name"], "temp": None, "wind": None, "label": "–", "ok": False})
+    return results
+
+def build_weather_html(weather):
+    cards = ""
+    for w in weather:
+        if w["ok"]:
+            cards += (
+                f'<div class="wc">'
+                f'<div class="wc-city">{w["name"]}</div>'
+                f'<div class="wc-main">{w["label"]}</div>'
+                f'<div class="wc-temp">{w["temp"]}°C</div>'
+                f'<div class="wc-wind">💨 {w["wind"]} km/h</div>'
+                f'</div>'
+            )
+        else:
+            cards += f'<div class="wc"><div class="wc-city">{w["name"]}</div><div class="wc-main">–</div></div>'
+    return f'<div class="weather-bar">{cards}</div>'
+
+# ── RSS ────────────────────────────────────────────────────────────────────────
 
 def get_text(el):
     if el is None or el.text is None:
@@ -122,6 +194,18 @@ def is_recent(pub_dt):
     except:
         return True
 
+def is_new(pub_dt):
+    """Gibt True zurueck wenn Artikel juenger als NEW_HOURS ist."""
+    if pub_dt is None:
+        return False
+    try:
+        now = datetime.now(timezone.utc)
+        if pub_dt.tzinfo is None:
+            pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+        return (now - pub_dt) <= timedelta(hours=NEW_HOURS)
+    except:
+        return False
+
 def is_relevant(title, desc):
     txt = (title + " " + desc).lower()
     return any(k in txt for k in KEYWORDS)
@@ -151,47 +235,118 @@ def age_label(pub_dt):
     except:
         return ""
 
+# ── CSS ────────────────────────────────────────────────────────────────────────
+
 CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-:root{--bg:#08090e;--bg2:#0d0f18;--sf:#12151f;--sf2:#181c2a;--bd:#1e2235;--bd2:#252a3d;
-      --ac:#5b9cf6;--ac2:#8b72f8;--tx:#f0f2f8;--tx2:#b8bdd4;--mu:#6b7194;--new:#10b981;}
+:root{
+  --bg:#08090e;--sf:#12151f;--sf2:#181c2a;--bd:#1e2235;--bd2:#252a3d;
+  --ac:#5b9cf6;--ac2:#8b72f8;--ac3:#f06292;
+  --tx:#f0f2f8;--tx2:#b8bdd4;--mu:#6b7194;--new:#10b981;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--tx);
-     min-height:100vh;padding-bottom:80px;
-     background-image:radial-gradient(ellipse at 20% 0%,rgba(91,156,246,.06) 0%,transparent 60%),
-                      radial-gradient(ellipse at 80% 100%,rgba(139,114,248,.05) 0%,transparent 60%);}
-.hdr{background:rgba(13,15,24,.92);border-bottom:1px solid var(--bd);padding:20px 24px 16px;
-     position:sticky;top:0;z-index:100;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+body{
+  font-family:"Inter",system-ui,sans-serif;
+  background:var(--bg);color:var(--tx);min-height:100vh;padding-bottom:80px;
+  overflow-x:hidden;
+}
+.bg-anim{
+  position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(ellipse at 15% 10%,rgba(91,156,246,.09) 0%,transparent 55%),
+    radial-gradient(ellipse at 85% 80%,rgba(139,114,248,.07) 0%,transparent 55%),
+    radial-gradient(ellipse at 50% 50%,rgba(240,98,146,.04) 0%,transparent 60%),
+    #08090e;
+  animation:bgshift 12s ease-in-out infinite alternate;
+}
+@keyframes bgshift{
+  0%  {background-position:0% 0%;}
+  50% {background-position:100% 50%;}
+  100%{background-position:0% 100%;}
+}
+.hdr{
+  background:rgba(13,15,24,.88);
+  border-bottom:1px solid var(--bd);
+  padding:20px 28px 16px;
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+}
 .hdr-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-.hdr-left h1{font-size:1.45rem;font-weight:800;letter-spacing:-.5px;
+.hdr-left h1{
+  font-size:1.45rem;font-weight:800;letter-spacing:-.5px;
   background:linear-gradient(135deg,var(--ac),var(--ac2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
 .hdr-meta{font-size:.75rem;color:var(--mu);margin-top:3px;}
 .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;
-      font-size:.7rem;font-weight:600;border:1px solid var(--bd2);background:var(--sf);color:var(--tx2);}
-.pill-ac{background:rgba(91,156,246,.12);border-color:rgba(91,156,246,.3);color:var(--ac);}
-.live{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;
-      font-size:.65rem;font-weight:700;background:rgba(16,185,129,.12);
-      border:1px solid rgba(16,185,129,.3);color:var(--new);letter-spacing:.5px;}
-.live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--new);animation:pulse 1.5s infinite;}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.8);}}
-.btn-r{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;
-       font-size:.73rem;font-weight:600;
-       background:linear-gradient(135deg,rgba(91,156,246,.18),rgba(139,114,248,.18));
-       border:1px solid rgba(91,156,246,.35);color:var(--ac);cursor:pointer;text-decoration:none;transition:all .2s;}
-.btn-r:hover{background:linear-gradient(135deg,rgba(91,156,246,.3),rgba(139,114,248,.3));transform:translateY(-1px);}
+.pill-ac{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 12px;
+  border-radius:20px;font-size:.7rem;font-weight:600;
+  background:rgba(91,156,246,.12);border:1px solid rgba(91,156,246,.3);color:var(--ac);
+}
+.live{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 11px;
+  border-radius:20px;font-size:.65rem;font-weight:700;letter-spacing:.5px;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:var(--new);
+}
+.live::before{
+  content:"";width:6px;height:6px;border-radius:50%;background:var(--new);
+  animation:pulse 1.5s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.7);}}
+.btn-r{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 14px;
+  border-radius:20px;font-size:.73rem;font-weight:600;
+  background:linear-gradient(135deg,rgba(91,156,246,.15),rgba(139,114,248,.15));
+  border:1px solid rgba(91,156,246,.32);color:var(--ac);
+  cursor:pointer;text-decoration:none;transition:all .2s;
+}
+.btn-r:hover{background:linear-gradient(135deg,rgba(91,156,246,.28),rgba(139,114,248,.28));transform:translateY(-1px);}
+@media(max-width:720px){.hdr-right{display:none;}}
+
+/* Wetter-Bar */
+.weather-bar{
+  max-width:1200px;margin:18px auto 0;padding:0 16px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+}
+@media(max-width:720px){.weather-bar{grid-template-columns:repeat(2,1fr);}}
+.wc{
+  background:var(--sf);border:1px solid var(--bd);border-radius:14px;
+  padding:13px 16px;display:flex;flex-direction:column;gap:2px;
+  transition:border-color .2s;
+}
+.wc:hover{border-color:var(--bd2);}
+.wc-city{font-size:.68rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu);}
+.wc-main{font-size:.82rem;color:var(--tx2);margin-top:4px;}
+.wc-temp{font-size:1.5rem;font-weight:800;color:var(--tx);line-height:1.1;}
+.wc-wind{font-size:.68rem;color:var(--mu);margin-top:3px;}
+
 .wrap{max-width:1200px;margin:0 auto;padding:24px 16px;}
-.slabel{font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
-        color:var(--mu);margin-bottom:12px;padding-left:2px;}
+.slabel{
+  font-size:.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--mu);margin-bottom:12px;padding-left:2px;
+}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:26px;}
-@media(max-width:720px){.grid{grid-template-columns:1fr;}.hdr-right{display:none;}}
-.card{background:var(--sf);border:1px solid var(--bd);border-radius:16px;overflow:hidden;
-      display:flex;flex-direction:column;transition:border-color .2s,box-shadow .2s;}
-.card:hover{border-color:var(--bd2);box-shadow:0 8px 32px rgba(0,0,0,.4);}
-.card-hdr{padding:13px 16px;display:flex;align-items:center;gap:9px;
-          border-bottom:1px solid var(--bd);background:var(--sf2);position:relative;overflow:hidden;}
+@media(max-width:720px){.grid{grid-template-columns:1fr;}}
+.card{
+  background:var(--sf);border:1px solid var(--bd);border-radius:16px;
+  overflow:hidden;display:flex;flex-direction:column;
+  opacity:0;transform:translateY(22px);
+  animation:cardin .55s ease forwards;
+  transition:border-color .2s,box-shadow .2s;
+}
+.card:hover{border-color:var(--bd2);box-shadow:0 10px 36px rgba(0,0,0,.45);}
+.card:nth-child(1){animation-delay:.05s;}
+.card:nth-child(2){animation-delay:.15s;}
+.card:nth-child(3){animation-delay:.25s;}
+.card:nth-child(4){animation-delay:.35s;}
+@keyframes cardin{to{opacity:1;transform:translateY(0);}}
+.card-hdr{
+  padding:13px 16px;display:flex;align-items:center;gap:9px;
+  border-bottom:1px solid var(--bd);background:var(--sf2);
+  position:relative;overflow:hidden;
+}
 .card-hdr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;}
 .card-de .card-hdr::before{background:linear-gradient(180deg,#e63946,#ff8fa3);}
 .card-en .card-hdr::before{background:linear-gradient(180deg,#56b4e9,#74c7f0);}
@@ -210,61 +365,76 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 .ni-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
 .nt{font-size:.855rem;font-weight:600;color:var(--tx);line-height:1.45;margin-bottom:5px;flex:1;transition:color .15s;}
 .ni:hover .nt{color:var(--ac);}
-.ni-arr{color:var(--ac);font-size:.72rem;opacity:0;transform:translateX(-4px);transition:all .15s;flex-shrink:0;margin-top:2px;}
+.ni-arr{color:var(--ac);font-size:.72rem;opacity:0;transform:translateX(-5px);transition:all .18s;flex-shrink:0;margin-top:2px;}
 .nd{font-size:.73rem;color:var(--tx2);line-height:1.5;margin-bottom:6px;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .ni-foot{display:flex;align-items:center;gap:7px;}
 .nm{font-size:.67rem;color:var(--mu);}
-.ni-new{font-size:.58rem;font-weight:700;letter-spacing:.5px;
-        background:rgba(16,185,129,.1);color:var(--new);border:1px solid rgba(16,185,129,.25);
-        padding:1px 6px;border-radius:20px;}
+.ni-new{
+  font-size:.58rem;font-weight:700;letter-spacing:.5px;
+  background:rgba(16,185,129,.1);color:var(--new);
+  border:1px solid rgba(16,185,129,.25);padding:1px 6px;border-radius:20px;
+  animation:newpulse 2s ease-in-out infinite;
+}
+@keyframes newpulse{0%,100%{opacity:1;}50%{opacity:.5;}}
 .empty{padding:22px;color:var(--mu);font-size:.82rem;text-align:center;}
 .err{padding:14px 16px;color:#f87171;font-size:.76rem;line-height:1.6;word-break:break-word;}
-.foot{text-align:center;color:var(--mu);font-size:.7rem;margin-top:36px;
-      padding:18px;border-top:1px solid var(--bd);}
+.foot{
+  text-align:center;color:var(--mu);font-size:.7rem;
+  margin-top:36px;padding:18px;border-top:1px solid var(--bd);
+}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease;}
+.reveal.visible{opacity:1;transform:translateY(0);}
 """
 
-MANIFEST = '''{"name":"Daily Briefing","short_name":"Briefing",
-"description":"Taegliches News-Briefing: Politik, Wirtschaft, EU",
-"start_url":"/daily-briefing/","display":"standalone",
-"background_color":"#08090e","theme_color":"#08090e",
-"orientation":"portrait",
-"icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},
-         {"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}'''
+MANIFEST = '{"name":"Daily Briefing","short_name":"Briefing","description":"Taegliches News-Briefing: Politik, Wirtschaft, EU","start_url":"/daily-briefing/","display":"standalone","background_color":"#08090e","theme_color":"#08090e","orientation":"portrait","icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}'
 
 SW_JS = """
-const CACHE = "briefing-v1";
+const CACHE = "briefing-v3";
 const ASSETS = ["./"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
 });
 self.addEventListener("fetch", e => {
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
-  );
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 """
 
-def build_card(r):
+JS = """
+<script>
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+document.addEventListener("DOMContentLoaded", () => {
+  const els = document.querySelectorAll(".reveal");
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add("visible"); io.unobserve(e.target); } });
+  }, {threshold: 0.08});
+  els.forEach(el => io.observe(el));
+});
+</script>
+"""
+
+# ── HTML-Bausteine ─────────────────────────────────────────────────────────────
+
+def build_card(r, idx):
     bdg   = "de" if r["country"] == "DE" else "en"
     items = r["items"]
     if r["error"] and not items:
         e    = html_module.escape(r["error"][:200])
         body = f'<div class="err">&#9888; Feed nicht erreichbar:<br><small>{e}</small></div>'
     elif not items:
-        body = '<div class="empty">Keine aktuellen Artikel.</div>'
+        body = '<div class="empty">Keine aktuellen Artikel gefunden.</div>'
     else:
         rows = ""
-        for i, it in enumerate(items):
+        for it in items:
             t   = html_module.escape(it["title"])
             lk  = html_module.escape(it["link"])
             d   = (f'<div class="nd">{html_module.escape(it["desc"])}</div>' if it["desc"] else "")
             ts  = fmt_time(it["pub_dt"], it["pubdate"])
             age = age_label(it["pub_dt"])
             nm  = f'<span class="nm">{ts} &middot; {age}</span>' if ts else ""
-            nb  = '<span class="ni-new">NEU</span>' if i < 2 else ""
+            nb  = '<span class="ni-new">NEU</span>' if is_new(it["pub_dt"]) else ""
             rows += (
-                f'<div class="ni"><a href="{lk}" target="_blank" rel="noopener">'
+                f'<div class="ni reveal"><a href="{lk}" target="_blank" rel="noopener">'
                 f'<div class="ni-top"><div class="nt">{t}</div><span class="ni-arr">&#8594;</span></div>'
                 f'{d}<div class="ni-foot">{nm}{nb}</div></a></div>'
             )
@@ -272,17 +442,20 @@ def build_card(r):
     cnt = f'<span class="card-cnt">{len(items)} Artikel</span>' if items else ""
     return (
         f'<div class="card card-{bdg}"><div class="card-hdr">'
-        f'<span class="card-em">{r["emoji"]}</span><span class="card-name">{r["name"]}</span>'
+        f'<span class="card-em">{r["emoji"]}</span>'
+        f'<span class="card-name">{r["name"]}</span>'
         f'{cnt}<span class="card-bdg bdg-{bdg}">{r["country"]}</span></div>{body}</div>'
     )
 
-def build_page(results, now):
-    ds    = now.strftime("%d. %B %Y")
+def build_page(results, weather, now):
+    wd    = WOCHENTAGE[now.weekday()]
+    monat = MONATE[now.month - 1]
+    ds    = f"{now.strftime('%d.')} {monat} {now.strftime('%Y')}"
     ts    = now.strftime("%H:%M")
-    wd    = now.strftime("%A")
     total = sum(r["count"] for r in results)
-    de_c  = "".join(build_card(r) for r in results if r["country"] == "DE")
-    en_c  = "".join(build_card(r) for r in results if r["country"] == "EN")
+    de_c  = "".join(build_card(r, i) for i, r in enumerate(x for x in results if x["country"] == "DE"))
+    en_c  = "".join(build_card(r, i) for i, r in enumerate(x for x in results if x["country"] == "EN"))
+    whtml = build_weather_html(weather)
     return (
         "<!DOCTYPE html><html lang='de'><head>"
         "<meta charset='UTF-8'>"
@@ -295,31 +468,41 @@ def build_page(results, now):
         "<link rel='manifest' href='manifest.json'>"
         "<link rel='apple-touch-icon' href='icon-192.png'>"
         f"<style>{CSS}</style>"
-        "<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');</script>"
         "</head><body>"
+        "<div class='bg-anim'></div>"
         "<div class='hdr'><div class='hdr-inner'>"
         "<div class='hdr-left'>"
-        f"<h1>&#128240; Daily Briefing</h1>"
+        "<h1>&#128240; Daily Briefing</h1>"
         f"<div class='hdr-meta'>{wd}, {ds} &middot; {ts} Uhr &middot; Politik &middot; Wirtschaft &middot; EU/Welt</div>"
         "</div>"
         "<div class='hdr-right'>"
-        f"<span class='pill pill-ac'>&#128240; {total} Artikel</span>"
+        f"<span class='pill-ac'>&#128240; {total} Artikel</span>"
         "<span class='live'>LIVE</span>"
-        "<a class='btn-r' href='javascript:location.reload()'>&#8635; Reload</a>"
+        "<a class='btn-r' href='javascript:location.reload()'>&#8635; Aktualisieren</a>"
         "</div></div></div>"
+        f"{whtml}"
         "<div class='wrap'>"
-        "<div class='slabel'>🇩🇪 Deutschland &amp; Europa</div>"
+        "<div class='slabel'>\U0001f1e9\U0001f1ea Deutschland &amp; Europa</div>"
         f"<div class='grid'>{de_c}</div>"
-        "<div class='slabel'>🌐 International</div>"
+        "<div class='slabel'>\U0001f310 International</div>"
         f"<div class='grid'>{en_c}</div>"
-        f"<div class='foot'>Stand: {ds} {ts} Uhr &middot; Tagesschau &middot; Spiegel &middot; BBC &middot; DW &middot; Kein API-Key</div>"
-        "</div></body></html>"
+        f"<div class='foot'>Stand: {wd}, {ds} &middot; {ts} Uhr &middot; Tagesschau &middot; Spiegel &middot; BBC &middot; DW &middot; Wetter: open-meteo.com</div>"
+        "</div>"
+        f"{JS}"
+        "</body></html>"
     )
 
+# ── Main ───────────────────────────────────────────────────────────────────────
+
 def main():
-    print("Daily Briefing generieren...")
-    now = datetime.now(timezone.utc)
+    print("Daily Briefing wird generiert...")
+    now = datetime.now()
     os.makedirs("docs", exist_ok=True)
+
+    print("  Wetter wird geladen...", end=" ", flush=True)
+    weather = fetch_weather(CITIES)
+    print("OK")
+
     results = []
     for feed in FEEDS:
         print(f"  {feed['name']}...", end=" ", flush=True)
@@ -333,14 +516,23 @@ def main():
         results.append({"name":feed["name"],"country":feed["country"],
                         "emoji":feed["emoji"],"items":filtered,
                         "count":len(filtered),"error":err})
-    page = build_page(results, now)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+
+    page = build_page(results, weather, now)
+    out  = OUTPUT_FILE
+    os.makedirs(os.path.dirname(out) if os.path.dirname(out) else ".", exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
         f.write(page)
     with open("docs/manifest.json", "w", encoding="utf-8") as f:
         f.write(MANIFEST)
     with open("docs/sw.js", "w", encoding="utf-8") as f:
         f.write(SW_JS)
-    print(f"Fertig: {OUTPUT_FILE}")
+    print(f"Gespeichert: {out}")
+    try:
+        import webbrowser
+        webbrowser.open(out)
+    except:
+        pass
+    print("Fertig!")
 
 if __name__ == "__main__":
     main()
