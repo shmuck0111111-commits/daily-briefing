@@ -32,7 +32,7 @@ jobs:
         run: pip install requests
 
       - name: Generate Briefing
-        run: python daily_briefing.py
+        run: python daily_briefing4.py
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
