@@ -2,9 +2,13 @@ name: Daily Briefing
 
 on:
   schedule:
-    - cron: '0 6 * * *'
-    - cron: '0 11 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 12 * * *'
     - cron: '0 15 * * *'
+    - cron: '0 17 * * *'
+    - cron: '0 18 * * *'
+    - cron: '0 21 * * *'
   workflow_dispatch:
 
 permissions:
