@@ -19,13 +19,48 @@ FEEDS = [
     {"name":"Spiegel Online","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
         "https://www.spiegel.de/schlagzeilen/tops/index.rss",
         "https://www.spiegel.de/schlagzeilen/index.rss"]},
-    {"name":"BBC News","country":"EN","emoji":"\U0001f1ec\U0001f1e7","urls":[
-        "https://feeds.bbci.co.uk/news/world/rss.xml",
-        "https://feeds.bbci.co.uk/news/rss.xml"]},
-    {"name":"Deutsche Welle","country":"EN","emoji":"\U0001f310","urls":[
-        "https://rss.dw.com/xml/rss-en-all",
-        "https://rss.dw.com/xml/rss-en-top"]},
+    {"name":"FAZ","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://www.faz.net/rss/aktuell/",
+        "https://www.faz.net/rss/aktuell/politik/"]},
+    {"name":"Zeit Online","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://newsfeed.zeit.de/index",
+        "https://newsfeed.zeit.de/politik/index"]},
+    {"name":"Süddeutsche Zeitung","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://rss.sueddeutsche.de/rss/Topthemen",
+        "https://rss.sueddeutsche.de/rss/politik"]},
+    {"name":"ARD Börse","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://boerse.ard.de/rss/wirtschaft.xml",
+        "https://www.tagesschau.de/wirtschaft/index~rss2.xml"]},
+    {"name":"finanzen.net","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://www.finanzen.net/rss/news",
+        "https://www.finanzen.net/nachricht/rss"]},
+    {"name":"Deutsche Welle","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://rss.dw.com/xml/rss-de-all",
+        "https://rss.dw.com/xml/rss-de-top"]},
+    {"name":"n-tv","country":"DE","emoji":"\U0001f1e9\U0001f1ea","urls":[
+        "https://www.n-tv.de/rss",
+        "https://www.n-tv.de/politik/rss"]},
 ]
+
+# Hartes Pinning: Kategorie wird gesetzt – aber nur wenn Pflicht-Keywords vorhanden
+PINNED_HARD = {
+    "ARD Börse":    "Wirtschaft",
+    "finanzen.net": "Wirtschaft",
+}
+# Pflicht-Keywords für PINNED_HARD (Wirtschaft): Artikel ohne diese werden verworfen
+WIRTSCHAFT_REQUIRED = {
+    "aktien","b\u00f6rse","boerse","dax","mdax","sdax","tecdax",
+    "zinsen","leitzins","inflation","konjunktur","rezession",
+    "anleihe","rendite","dividende","kurs","kursverlust","kursgewinn",
+    "quartalsergebnis","jahresbilanz","gewinnwarnung","umsatzeinbruch",
+    "bruttoinlandsprodukt","bundesbank","ezb","fed",
+    "handelsbilanz","rohstoff","oel","gold","devisen","ipo","fusion","\u00fcbernahme",
+}
+# Weiches Pinning: gilt nur als Fallback wenn kein Keyword greift
+PINNED_SOFT = {
+    "Deutsche Welle": "Sonstiges",
+    "n-tv":           "Sonstiges",
+}
 
 WMO_CODES = {
     0:"\u2600\ufe0f Klar", 1:"\U0001f324\ufe0f Meist klar", 2:"\u26c5 Teilw. bew\u00f6lkt", 3:"\u2601\ufe0f Bedeckt",
@@ -43,8 +78,8 @@ CITIES = [
     {"name":"M\u00fcnchen",  "lat":48.14,"lon":11.58},
 ]
 
-MAX_ITEMS = 12
-MAX_HOURS = 24
+MAX_ITEMS = 8
+MAX_HOURS = 8
 NEW_HOURS = 2
 
 if os.path.isdir("docs"):
@@ -76,46 +111,53 @@ KEYWORDS = [
 ]
 
 CATEGORY_RULES = [
-    ("Konflikte",   ["ukraine","russland","krieg","angriff","nato","iran","israel",
-                     "attack","war","sanctions","military","waffe","terror","soldat",
-                     "bomben","rakete","missile","troops","combat","hamas","gaza",
-                     "konflikt","gefecht","offensive"]),
-    ("Energie",     ["energie","oel","gas","strom","solar","wind","erneuerbar",
-                     "energy","oil","pipeline","coal","nuclear","klima","climate",
-                     "co2","emission","fossil","atomkraft","windkraft"]),
-    ("Europa & EU", ["eu","europa","kommission","br\u00fcssel","bruessel","schengen",
-                     "eurozone","europe","commission","von der leyen","ursula"]),
-    ("USA",         ["usa","trump","washington","biden","harris","congress","senate",
-                     "america","americans","wall street","new york","white house"]),
-    ("Wirtschaft",  ["wirtschaft","konjunktur","inflation","zinsen","bundesbank","dax",
-                     "aktien","boerse","markt","handel","haushalt","schulden","milliard",
-                     "rezession","wachstum","steuer","economy","market","finance","bank",
-                     "rate","trade","stock","gdp","recession","interest","tariff","budget",
-                     "import","export","zoll","investition"]),
-    ("Politik",     ["politik","regierung","minister","kanzler","bundestag","wahl",
-                     "partei","koalition","cdu","spd","gruene","afd","fdp","election",
-                     "government","parliament","president","policy","vote","abstimmung",
-                     "merz","scholz","macron","putin"]),
+    # ── Konflikte: ausschließlich ausländische Kriegs-/Militärthemen ──────────────
+    ("Konflikte", [
+        "ukraine","russland","israel","gaza","hamas","iran","syrien","jemen","libanon",
+        "krieg","kriegs","soldat","soldaten","waffe","waffen",
+        "rakete","raketen","bomben","luftangriff","gefecht","offensive",
+        "waffenstillstand","besatzung","terroranschlag","streitkr\u00e4fte",
+    ]),
+    # ── Wirtschaft: ausschließlich Finanz-/Börsenthemen ──────────────────────────
+    # (gilt auch als Pflicht-Filter für finanzen.net / ARD Börse)
+    ("Wirtschaft", [
+        "aktien","b\u00f6rse","boerse","dax","mdax","sdax","tecdax",
+        "zinsen","leitzins","inflation","konjunktur","rezession",
+        "anleihe","rendite","dividende","kurs","kursverlust","kursgewinn",
+        "quartalsergebnis","jahresbilanz","gewinnwarnung","umsatzeinbruch",
+        "bruttoinlandsprodukt","bundesbank","ezb","fed",
+        "handelsbilanz","rohstoff","oel","gold","devisen",
+        "ipo","fusion","\u00fcbernahme","investition",
+    ]),
+    # ── Politik: ausschließlich deutsche Innenpolitik ─────────────────────────────
+    ("Politik", [
+        "bundestag","bundesrat","bundesregierung","bundeskanzler",
+        "koalition","koalitionsvertrag","bundeskabinett","landtag",
+        "cdu","csu","spd","gr\u00fcne","afd","fdp","bsw",
+        "merz","scholz","habeck","baerbock","klingbeil","weidel",
+        "lindner","pistorius","s\u00f6der","faeser","lauterbach",
+    ]),
+    # ── Sonstiges: Fallback – kein Pflicht-Keyword ────────────────────────────────
 ]
 
 CAT_EMOJI = {
     "Politik":    "\U0001f3db",
     "Wirtschaft": "\U0001f4b0",
     "Konflikte":  "\u2694\ufe0f",
-    "Energie":    "\u26a1",
-    "Europa & EU":"\U0001f1ea\U0001f1fa",
-    "USA":        "\U0001f1fa\U0001f1f8",
-    "Welt":       "\U0001f30d",
+    "Sonstiges":  "\U0001f30d",
 }
+
+CAT_ORDER = ["Politik", "Wirtschaft", "Konflikte", "Sonstiges"]
+VISIBLE_PER_CAT = 5
+MAX_PER_CAT = 8
+
+CAT_MAIN = {"Politik", "Wirtschaft", "Konflikte", "Sonstiges"}
 
 CAT_CSS_KEY = {
     "Politik":    "politik",
     "Wirtschaft": "wirtschaft",
     "Konflikte":  "konflikte",
-    "Energie":    "energie",
-    "Europa & EU":"europa",
-    "USA":        "usa",
-    "Welt":       "welt",
+    "Sonstiges":  "welt",
 }
 
 WOCHENTAGE = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"]
@@ -129,7 +171,7 @@ def categorize(title, desc):
     for cat, keywords in CATEGORY_RULES:
         if any(k in txt for k in keywords):
             return cat
-    return "Welt"
+    return "Sonstiges"
 
 # ── Wetter ─────────────────────────────────────────────────────────────────────
 
@@ -155,7 +197,7 @@ def fetch_weather(cities):
             results.append({"name":c["name"],"temp":None,"wind":None,"label":"\u2013","ok":False})
     return results
 
-def build_weather_html(weather):
+def build_weather_html(weather, tod_class=""):
     cards = ""
     for w in weather:
         if w["ok"]:
@@ -167,7 +209,7 @@ def build_weather_html(weather):
             )
         else:
             cards += f'<div class="wc"><div class="wc-city">{w["name"]}</div><div class="wc-main">\u2013</div></div>'
-    return f'<div class="weather-bar">{cards}</div>'
+    return f'<div class="weather-bar {tod_class}">{cards}</div>'
 
 # ── RSS ─────────────────────────────────────────────────────────────────────────
 
@@ -300,6 +342,107 @@ def pub_ts(pub_dt):
     except:
         return "0"
 
+# ── Dedup & Unified Feed ────────────────────────────────────────────────────────
+
+def _title_tokens(title):
+    t = re.sub(r'[^\w\s]', '', title.lower())
+    stopwords = {'der','die','das','ein','eine','und','oder','mit','von','zu','im','in',
+                 'an','auf','bei','für','ist','sind','hat','haben','wird','werden','nach',
+                 'the','a','an','of','in','at','on','for','to','by','is','are','has','have',
+                 'as','its','it','this','that','with','from','but','not','new','nach','über'}
+    return {w for w in t.split() if len(w) > 3 and w not in stopwords}
+
+def deduplicate(items):
+    seen = []
+    result = []
+    for item in items:
+        tokens = _title_tokens(item['title'])
+        if not tokens:
+            result.append(item)
+            continue
+        dup = False
+        for s in seen:
+            overlap = len(tokens & s) / max(1, min(len(tokens), len(s)))
+            if overlap >= 0.55:
+                dup = True
+                break
+        if not dup:
+            seen.append(tokens)
+            result.append(item)
+    return result
+
+def build_unified_feed(results):
+    all_items = []
+    for r in results:
+        for item in r["items"]:
+            it = dict(item)
+            it["_source"]  = r["name"]
+            it["_emoji"]   = r["emoji"]
+            it["_country"] = r["country"]
+            all_items.append(it)
+    all_items.sort(key=sort_key_dt, reverse=True)
+    return deduplicate(all_items)
+
+def _article_row(it, overflow=False):
+    cat         = it.get("category", "Welt")
+    cat_display = cat if cat in CAT_MAIN else "Sonstiges"
+    t      = html_module.escape(it["title"])
+    lk     = html_module.escape(it["link"])
+    d      = f'<div class="nd">{html_module.escape(it["desc"])}</div>' if it["desc"] else ""
+    ts     = fmt_time(it["pub_dt"], it["pubdate"])
+    age    = age_label(it["pub_dt"])
+    nm     = f'<span class="nm">{ts} &middot; {age}</span>' if ts else ""
+    nb     = '<span class="ni-new">NEU</span>' if is_new(it["pub_dt"]) else ""
+    src     = it.get("_source", "")
+    sbadge  = f'<span class="ni-src ni-src-de">{html_module.escape(src)}</span>'
+    src_esc = html_module.escape(src)
+    ovf_style = ' style="display:none"' if overflow else ""
+    ovf_cls   = " ni-overflow" if overflow else ""
+    return (
+        f'<div class="ni reveal{ovf_cls}" data-src="{src_esc}" data-cat="{html_module.escape(cat_display)}" data-ts="{pub_ts(it["pub_dt"])}"{ovf_style}>'
+        f'<a href="{lk}" target="_blank" rel="noopener">'
+        f'<div class="ni-top"><div class="nt">{t}</div><div class="ni-top-right">{sbadge}<span class="ni-arr">&#8594;</span></div></div>'
+        f'{d}<div class="ni-foot">{nm}{nb}</div></a></div>'
+    )
+
+def build_feed_html(unified_items):
+    if not unified_items:
+        return '<div class="cat-section"><div class="feed-list"><div class="empty">Keine aktuellen Artikel gefunden.</div></div></div>'
+    groups = {cat: [] for cat in CAT_ORDER}
+    for it in unified_items:
+        cat = it.get("category", "Welt")
+        groups[cat if cat in CAT_MAIN else "Sonstiges"].append(it)
+    sections = ""
+    for cat in CAT_ORDER:
+        items = groups[cat]
+        if not items:
+            continue
+        emoji = CAT_EMOJI.get(cat, "\U0001f30d")
+        ckey  = CAT_CSS_KEY.get(cat, "welt")
+        items = items[:MAX_PER_CAT]
+        cnt   = len(items)
+        rows  = "".join(
+            _article_row(it, overflow=(i >= VISIBLE_PER_CAT))
+            for i, it in enumerate(items)
+        )
+        hidden = cnt - VISIBLE_PER_CAT
+        more_btn = (
+            f'<button class="cat-sec-more" data-expanded="false" data-hidden="{hidden}">+{hidden} weitere</button>'
+            if hidden > 0 else ""
+        )
+        sections += (
+            f'<div class="cat-section" data-section="{html_module.escape(cat)}">'
+            f'<div class="cat-sec-hdr cat-sec-{ckey}">'
+            f'<span class="cat-sec-icon">{emoji}</span>'
+            f'<span class="cat-sec-name">{html_module.escape(cat)}</span>'
+            f'<span class="cat-sec-count">{cnt}</span>'
+            f'{more_btn}'
+            f'</div>'
+            f'<div class="feed-list">{rows}</div>'
+            f'</div>'
+        )
+    return sections
+
 # ── CSS ─────────────────────────────────────────────────────────────────────────
 
 CSS = """
@@ -335,7 +478,8 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 .hdr-left h1{font-size:1.45rem;font-weight:800;letter-spacing:-.5px;
   background:linear-gradient(135deg,var(--ac),var(--ac2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.hdr-meta{font-size:.75rem;color:var(--mu);margin-top:3px;}
+.hdr-greeting{font-size:.88rem;font-weight:500;color:var(--tx2);margin-top:2px;}
+.hdr-meta{font-size:.72rem;color:var(--mu);margin-top:2px;}
 .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .pill-ac{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;
   font-size:.7rem;font-weight:600;background:rgba(91,156,246,.12);border:1px solid rgba(91,156,246,.3);color:var(--ac);}
@@ -355,8 +499,14 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 .tab-nav{background:rgba(13,15,24,.88);border-bottom:1px solid var(--bd);
   z-index:95;
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  padding:0 28px;display:flex;gap:2px;}
-@media(max-width:720px){.tab-nav{padding:0 16px;}}
+  padding:0 28px;display:flex;gap:2px;align-items:center;}
+@media(max-width:720px){.tab-nav{padding:0 12px;}}
+.tab-right{margin-left:auto;display:flex;align-items:center;gap:2px;}
+.view-btn{background:none;border:none;color:var(--mu);cursor:pointer;
+  padding:8px 10px;font-size:1.1rem;line-height:1;border-radius:8px;
+  transition:color .18s,background .18s;}
+.view-btn:hover{color:var(--tx);background:rgba(255,255,255,.06);}
+.view-btn.active{color:var(--ac);}
 .tab-btn{padding:10px 18px;font-size:.82rem;font-weight:600;color:var(--mu);
   background:none;border:none;border-bottom:2px solid transparent;
   cursor:pointer;transition:all .2s;white-space:nowrap;}
@@ -370,7 +520,9 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
   padding:10px 28px;z-index:90;}
 @media(max-width:720px){.filter-bar{padding:10px 16px;}}
 .filter-inner{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:8px;}
-.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{height:3px;}
+.filter-row::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px;}
 .filter-label{font-size:.6rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);min-width:52px;}
 @media(max-width:720px){.filter-label{display:none;}}
 .flt-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
@@ -391,8 +543,15 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 
 /* Wetter */
 .weather-bar{max-width:1200px;margin:18px auto 0;padding:0 16px;
-  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  border-radius:16px;transition:background .4s;}
 @media(max-width:720px){.weather-bar{grid-template-columns:repeat(2,1fr);}}
+.tod-morning .wc{border-color:rgba(251,191,36,.3);}
+.tod-morning .wc:hover{border-color:rgba(251,191,36,.55);}
+.tod-evening .wc{border-color:rgba(249,115,22,.3);}
+.tod-evening .wc:hover{border-color:rgba(249,115,22,.55);}
+.tod-night .wc{border-color:rgba(139,114,248,.3);}
+.tod-night .wc:hover{border-color:rgba(139,114,248,.5);}
 .wc{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:13px 16px;
   display:flex;flex-direction:column;gap:2px;transition:border-color .2s;}
 .wc:hover{border-color:var(--bd2);}
@@ -441,6 +600,7 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 .ni:hover .ni-arr{opacity:1;transform:translateX(0);}
 .ni a{text-decoration:none;color:inherit;display:block;}
 .ni-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.ni-top-right{display:flex;align-items:center;gap:5px;flex-shrink:0;margin-top:1px;}
 .nt{font-size:.855rem;font-weight:600;color:var(--tx);line-height:1.45;margin-bottom:5px;flex:1;transition:color .15s;}
 .ni:hover .nt{color:var(--ac);}
 .ni-arr{color:var(--ac);font-size:.72rem;opacity:0;transform:translateX(-5px);transition:all .18s;flex-shrink:0;margin-top:2px;}
@@ -460,21 +620,96 @@ body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--t
 .ni-cat-europa    {background:rgba(139,114,248,.1);color:var(--cat-europa);border:1px solid rgba(139,114,248,.25);}
 .ni-cat-usa       {background:rgba(249,115,22,.1);color:var(--cat-usa);border:1px solid rgba(249,115,22,.25);}
 .ni-cat-welt      {background:rgba(107,113,148,.1);color:var(--cat-welt);border:1px solid rgba(107,113,148,.25);}
+.ni{position:relative;}
+.ni::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:transparent;transition:background .18s;}
+.ni[data-cat="Politik"]:hover::before{background:var(--cat-politik);}
+.ni[data-cat="Wirtschaft"]:hover::before{background:var(--cat-wirtschaft);}
+.ni[data-cat="Konflikte"]:hover::before{background:var(--cat-konflikte);}
+.ni[data-cat="Welt"]:hover::before,.ni[data-cat="Sonstiges"]:hover::before{background:var(--cat-welt);}
 .ni.ni-hidden{max-height:0;padding-top:0;padding-bottom:0;opacity:0;border-bottom:none;pointer-events:none;}
+.ni-src{font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:20px;
+  background:var(--bd2);color:var(--mu);border:1px solid var(--bd);white-space:nowrap;}
+.ni-src-de{border-color:rgba(230,57,70,.25);color:#ff8fa3;background:rgba(230,57,70,.08);}
+.ni-src-en{border-color:rgba(86,180,233,.25);color:#7dd3fc;background:rgba(86,180,233,.08);}
 .empty{padding:22px;color:var(--mu);font-size:.82rem;text-align:center;}
 .err{padding:14px 16px;color:#f87171;font-size:.76rem;line-height:1.6;word-break:break-word;}
 #no-results{display:none;text-align:center;padding:60px 20px;color:var(--mu);}
 #no-results.visible{display:block;}
 #no-results .nr-icon{font-size:2.5rem;margin-bottom:12px;}
 #no-results .nr-text{font-size:.9rem;}
+.stand-bar{max-width:1200px;margin:14px auto 0;padding:0 16px;}
+.stand-inner{background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.18);
+  border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:8px;font-size:.7rem;color:var(--mu);}
+.stand-dot{width:6px;height:6px;border-radius:50%;background:var(--new);animation:pulse 1.5s infinite;flex-shrink:0;}
+.stand-inner strong{color:var(--tx2);}
+.feed-list{background:var(--sf);border:1px solid var(--bd);overflow:hidden;}
+.cat-section{margin-bottom:20px;}
+.cat-sec-hdr{display:flex;align-items:center;gap:8px;padding:10px 16px;
+  background:var(--sf2);border:1px solid var(--bd);border-bottom:none;
+  border-radius:14px 14px 0 0;}
+.cat-section .feed-list{border-radius:0 0 14px 14px;border-top:none;}
+.cat-sec-icon{font-size:1rem;line-height:1;}
+.cat-sec-name{font-size:.82rem;font-weight:700;color:var(--tx);}
+.cat-sec-count{font-size:.6rem;font-weight:700;background:var(--bd2);color:var(--mu);padding:2px 7px;border-radius:20px;}
+.cat-sec-more{margin-left:auto;font-size:.68rem;font-weight:600;color:var(--ac);
+  background:rgba(91,156,246,.08);border:1px solid rgba(91,156,246,.22);
+  padding:3px 11px;border-radius:20px;cursor:pointer;transition:all .18s;}
+.cat-sec-more:hover{background:rgba(91,156,246,.2);}
+.cat-sec-konflikte{border-left:3px solid var(--cat-konflikte);}
+.cat-sec-konflikte  .cat-sec-name{color:var(--cat-konflikte);}
+.cat-sec-politik{border-left:3px solid var(--cat-politik);}
+.cat-sec-politik    .cat-sec-name{color:var(--cat-politik);}
+.cat-sec-wirtschaft{border-left:3px solid var(--cat-wirtschaft);}
+.cat-sec-wirtschaft .cat-sec-name{color:var(--cat-wirtschaft);}
+.cat-sec-welt,.cat-sec-sonstiges{border-left:3px solid var(--cat-welt);}
+.cat-sec-welt .cat-sec-name,.cat-sec-sonstiges .cat-sec-name{color:var(--cat-welt);}
 
 /* Spiel-Tab */
-.game-wrap{display:flex;flex-direction:column;align-items:center;padding:28px 16px;gap:16px;}
-.game-hint{font-size:.75rem;color:var(--mu);text-align:center;line-height:1.7;}
-.game-hint kbd{display:inline-block;background:var(--sf2);border:1px solid var(--bd2);
-  border-radius:5px;padding:1px 6px;font-size:.68rem;color:var(--tx2);}
+.game-wrap{display:flex;flex-direction:column;align-items:center;padding:20px 16px;gap:12px;}
+#game-ui{position:relative;display:inline-block;}
 #game-canvas{border-radius:16px;border:1px solid var(--bd);display:block;
-  box-shadow:0 0 40px rgba(91,156,246,.08);cursor:none;}
+  box-shadow:0 0 30px rgba(91,156,246,.08);}
+.game-overlay{position:absolute;inset:0;border-radius:16px;background:rgba(8,9,14,.88);
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;}
+.go-inner{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.go-title{font-size:1.8rem;font-weight:800;
+  background:linear-gradient(135deg,var(--ac),var(--ac2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.go-gameover{font-size:1.5rem;font-weight:800;color:#f87171;}
+.go-sub{font-size:.75rem;color:var(--tx2);line-height:1.6;max-width:240px;}
+.go-keys{font-size:.68rem;color:var(--mu);}
+.go-keys kbd{display:inline-block;background:var(--sf2);border:1px solid var(--bd2);
+  border-radius:4px;padding:1px 5px;font-size:.62rem;color:var(--tx2);}
+.go-score-val{font-size:1.7rem;font-weight:800;color:var(--tx);}
+.go-record{font-size:.8rem;color:var(--ac2);}
+.go-newrecord{font-size:.82rem;font-weight:700;color:#fbbf24;}
+.go-ask{font-size:.82rem;color:var(--tx2);}
+.go-btns{display:flex;gap:8px;}
+.go-btn{padding:8px 24px;border-radius:20px;font-size:.8rem;font-weight:700;cursor:pointer;border:none;
+  background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;transition:opacity .15s;}
+.go-btn:hover{opacity:.82;}
+.go-btn-sec{background:none!important;border:1px solid var(--bd2)!important;color:var(--tx2)!important;}
+
+/* Kompaktmodus */
+body.compact .nd{display:none;}
+body.compact .ni{padding:8px 16px;}
+body.compact .ni-foot{margin-top:2px;}
+
+/* Light Mode */
+body.light{
+  --bg:#f0f2f8;--sf:#ffffff;--sf2:#e6e9f4;--bd:#d0d4e8;--bd2:#b8bdd4;
+  --ac:#2d6fd4;--ac2:#5b3ec8;--ac3:#d04070;
+  --tx:#0d0f1c;--tx2:#2a3060;--mu:#6070a0;--new:#047857;
+  --cat-politik:#2d6fd4;--cat-wirtschaft:#047857;--cat-konflikte:#c0392b;
+  --cat-energie:#c07800;--cat-europa:#5b3ec8;--cat-usa:#c05000;--cat-welt:#506080;
+}
+body.light .bg-anim{
+  background:radial-gradient(ellipse at 15% 10%,rgba(45,111,212,.07) 0%,transparent 55%),
+             radial-gradient(ellipse at 85% 80%,rgba(91,62,200,.05) 0%,transparent 55%),#f0f2f8;}
+body.light .hdr,body.light .tab-nav,body.light .filter-bar{
+  background:rgba(240,242,248,.92);border-color:var(--bd);}
+body.light #progress-bar{background:linear-gradient(90deg,var(--ac),var(--ac2),var(--ac3));}
+body.light .view-btn:hover{background:rgba(0,0,0,.06);}
 
 /* Scroll-reveal & Footer */
 .reveal{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease;}
@@ -523,31 +758,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Filter ──────────────────────────────────────────────────────────────────────
-let activeSrc = 'all', activeCat = 'all';
+let activeSrc = 'all';
 
 function applyFilters() {
   const items = document.querySelectorAll('.ni[data-src]');
   let visible = 0;
   items.forEach(ni => {
-    const ok = (activeSrc === 'all' || ni.dataset.src === activeSrc) &&
-               (activeCat === 'all' || ni.dataset.cat === activeCat);
+    const overflowHidden = ni.classList.contains('ni-overflow') && ni.style.display === 'none';
+    const ok = (activeSrc === 'all' || ni.dataset.src === activeSrc) && !overflowHidden;
     ni.classList.toggle('ni-hidden', !ok);
     if (ok) visible++;
   });
-  document.querySelectorAll('.card[data-src]').forEach(card => {
-    card.classList.toggle('empty-card', !card.querySelectorAll('.ni:not(.ni-hidden)').length);
+  document.querySelectorAll('.cat-section').forEach(sec => {
+    const has = sec.querySelectorAll('.ni:not(.ni-hidden)').length > 0;
+    sec.style.display = has ? '' : 'none';
   });
   const noRes = document.getElementById('no-results');
   if (noRes) noRes.classList.toggle('visible', visible === 0);
   const res = document.getElementById('filter-result');
   if (res) {
-    if (activeSrc === 'all' && activeCat === 'all')
+    if (activeSrc === 'all')
       res.innerHTML = '<span>' + items.length + '</span> Artikel geladen';
     else
       res.innerHTML = '<span>' + visible + '</span> von ' + items.length + ' Artikeln sichtbar';
   }
   const clr = document.getElementById('clear-btn');
-  if (clr) clr.classList.toggle('visible', activeSrc !== 'all' || activeCat !== 'all');
+  if (clr) clr.classList.toggle('visible', activeSrc !== 'all');
 }
 
 function updateCounts() {
@@ -572,25 +808,63 @@ document.addEventListener('DOMContentLoaded', () => {
   applyFilters();
   document.querySelectorAll('.flt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const f = btn.dataset.filter, v = btn.dataset.val;
-      if (f === 'source') {
-        activeSrc = v;
-        document.querySelectorAll('.flt-btn[data-filter="source"]').forEach(b => b.classList.remove('active'));
-      } else {
-        activeCat = v;
-        document.querySelectorAll('.flt-btn[data-filter="cat"]').forEach(b => b.classList.remove('active'));
-      }
+      activeSrc = btn.dataset.val;
+      document.querySelectorAll('.flt-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilters();
     });
   });
   const clr = document.getElementById('clear-btn');
   if (clr) clr.addEventListener('click', () => {
-    activeSrc = activeCat = 'all';
+    activeSrc = 'all';
     document.querySelectorAll('.flt-btn').forEach(b => b.classList.toggle('active', b.dataset.val === 'all'));
     applyFilters();
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && clr) clr.click(); });
+});
+
+// ── Theme & Kompakt Toggles ─────────────────────────────────────────────────────
+(function() {
+  const body = document.body;
+  const themeBtn   = document.getElementById('theme-btn');
+  const compactBtn = document.getElementById('compact-btn');
+
+  function applyTheme(light) {
+    body.classList.toggle('light', light);
+    if (themeBtn) { themeBtn.classList.toggle('active', light); themeBtn.title = light ? 'Dunkelmodus' : 'Hellmodus'; }
+    localStorage.setItem('db_light', light ? '1' : '0');
+  }
+  function applyCompact(on) {
+    body.classList.toggle('compact', on);
+    if (compactBtn) compactBtn.classList.toggle('active', on);
+    localStorage.setItem('db_compact', on ? '1' : '0');
+  }
+
+  // Gespeicherte Präferenzen laden
+  applyTheme(localStorage.getItem('db_light') === '1');
+  applyCompact(localStorage.getItem('db_compact') === '1');
+
+  if (themeBtn)   themeBtn.addEventListener('click',   () => applyTheme(!body.classList.contains('light')));
+  if (compactBtn) compactBtn.addEventListener('click', () => applyCompact(!body.classList.contains('compact')));
+})();
+
+// ── Kategorie-Sektionen expand/collapse ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.cat-sec-more').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = btn.closest('.cat-section');
+      const expanded = btn.dataset.expanded === 'true';
+      const hidden = parseInt(btn.dataset.hidden || '0');
+      sec.querySelectorAll('.ni-overflow').forEach(ni => {
+        ni.style.display = expanded ? 'none' : '';
+        ni.classList.toggle('ni-hidden', expanded);
+      });
+      btn.dataset.expanded = expanded ? 'false' : 'true';
+      btn.textContent = expanded ? '+' + hidden + ' weitere' : '↑ Weniger';
+      // Recount filter results
+      applyFilters();
+    });
+  });
 });
 
 // ── STELLAR JUMP ───────────────────────────────────────────────────────────────
@@ -600,52 +874,198 @@ document.addEventListener('DOMContentLoaded', () => {
   const ctx = canvas.getContext('2d');
   let W, H;
 
-  const GRAV = 0.38, JUMP = -13, SPEED = 4.5;
-  const PLW = 30, PLH = 30;
-  const PTW = 74, PTH = 11;
+  const GRAV = 0.4, JUMP = -11.5, SPEED = 4.0;
+  const PLW = 24, PLH = 24;
+  const PTW = 64, PTH = 10;
+  const MIN_PLAT_GAP = 10;
+
+  // Zone ab je 200 Punkte. Jede Zone hat eigene Atmosphäre + Partikel-Effekt.
+  const ZONES = [
+    { bg:'#08090e', tint:null,                    starC:'#f0f2f8' },  // 0: Tiefer Weltraum
+    { bg:'#070e0d', tint:'rgba(6,78,59,.09)',      starC:'#6ee7b7' },  // 1: Aurora Borealis
+    { bg:'#07080f', tint:'rgba(14,116,144,.09)',   starC:'#7dd3fc' },  // 2: Biolumineszenz
+    { bg:'#0f0c06', tint:'rgba(120,53,15,.09)',    starC:'#fcd34d' },  // 3: Sonnenkorona
+    { bg:'#09060f', tint:'rgba(88,28,135,.10)',    starC:'#e879f9' },  // 4: Hyperraum
+  ];
 
   let state = 'idle', score = 0, hi = +localStorage.getItem('jump_hi') || 0;
   let camY = 0, totalH = 0;
-  let platforms = [], particles = [], stars = [];
+  let platforms = [], particles = [], stars = [], ambients = [];
   let player = {x:0, y:0, vx:0, vy:0};
   let keys = {}, touchX = null, touchDX = 0;
-  let animFrame;
+  // Sanfter Zonenübergang: fromZone → toZone über ~2s
+  let fromZone = 0, toZone = 0, zoneBlend = 1;
 
   function resize() {
     const wrap = canvas.parentElement;
-    W = canvas.width  = Math.min(420, wrap.clientWidth - 32);
-    H = canvas.height = Math.min(650, window.innerHeight - 220);
+    W = canvas.width  = Math.min(320, wrap.clientWidth - 24);
+    H = canvas.height = Math.min(460, window.innerHeight - 200);
     if (stars.length) initStars();
   }
 
   function initStars() {
-    stars = Array.from({length:55}, () => ({
+    stars = Array.from({length:40}, () => ({
       x: Math.random() * W, y: Math.random() * H * 4,
-      r: Math.random() * 1.4 + 0.3, a: Math.random() * 0.55 + 0.15,
+      r: Math.random() * 1.2 + 0.3, a: Math.random() * 0.5 + 0.15,
     }));
   }
 
-  function mkPlat(y) {
-    const moving = Math.random() < 0.18;
-    const bounce = !moving && Math.random() < 0.13;
-    return { x: Math.random() * (W - PTW - 20) + 10, y,
-             vx: moving ? (Math.random()>.5 ? 1.9 : -1.9) : 0,
+  function mkPlat(y, existing) {
+    const moving = Math.random() < 0.15;
+    const bounce = !moving && Math.random() < 0.12;
+    let x, tries = 0;
+    do {
+      x = Math.random() * (W - PTW - 16) + 8;
+      tries++;
+    } while (tries < 20 && existing && existing.some(p =>
+      Math.abs(p.y - y) < PTH + MIN_PLAT_GAP &&
+      x + PTW + MIN_PLAT_GAP > p.x && x - MIN_PLAT_GAP < p.x + PTW
+    ));
+    return { x, y, vx: moving ? (Math.random()>.5 ? 1.6 : -1.6) : 0,
              type: moving ? 'move' : bounce ? 'bounce' : 'normal' };
   }
 
   function reset() {
-    score = 0; camY = 0; totalH = 0; platforms = []; particles = [];
-    player = { x: W/2 - PLW/2, y: H - 120, vx: 0, vy: 0 };
-    platforms.push({ x: W/2 - PTW/2, y: H - 80, vx: 0, type: 'normal' });
-    for (let i = 1; i < 16; i++) platforms.push(mkPlat(H - 80 - i * 82));
+    score = 0; camY = 0; totalH = 0; platforms = []; particles = []; ambients = [];
+    fromZone = 0; toZone = 0; zoneBlend = 1;
+    player = { x: W/2 - PLW/2, y: H - 100, vx: 0, vy: 0 };
+    platforms.push({ x: W/2 - PTW/2, y: H - 65, vx: 0, type: 'normal' });
+    for (let i = 1; i < 16; i++) platforms.push(mkPlat(H - 65 - i * 75, platforms));
     player.vy = JUMP;
     initStars();
   }
 
   function spawnPart(x, y, col) {
-    for (let i = 0; i < 7; i++)
-      particles.push({ x, y, vx:(Math.random()-.5)*5, vy:(Math.random()-.5)*5-2,
-        life:1, decay:.04+Math.random()*.02, col, r:2+Math.random()*2 });
+    for (let i = 0; i < 6; i++)
+      particles.push({ x, y, vx:(Math.random()-.5)*4, vy:(Math.random()-.5)*4-2,
+        life:1, decay:.05+Math.random()*.02, col, r:1.5+Math.random()*1.5 });
+  }
+
+  // Ambient-Partikel erzeugen – alle y-Koordinaten korrekt camY-relativ
+  function mkAmbient(z) {
+    const ax = Math.random() * W;
+    // Weltkoordinate = aktueller Kamera-Oberpunkt + zufällige Bildschirmposition
+    const ay = camY + Math.random() * H;
+    if (z === 1) {
+      // Aurora: senkrechte Vorhänge, sinken langsam (≈ Kamerageschw. → bleiben im Bild)
+      return { x:ax, y:ay,
+               vx:(Math.random()-.5)*.25, vy:.2+Math.random()*.15,
+               h:35+Math.random()*55, w:1.4+Math.random(),
+               phase:Math.random()*Math.PI*2, spd:.015+Math.random()*.015,
+               a:.07+Math.random()*.08,
+               col:['#6ee7b7','#2dd4bf','#34d399'][Math.floor(Math.random()*3)], t:'curtain' };
+    } else if (z === 2) {
+      // Biolumineszenz: Orbs spawnen im unteren Bildbereich, treiben sanft auf
+      return { x:ax, y:camY + H*.7 + Math.random()*H*.35,
+               vx:(Math.random()-.5)*.18, vy:-.12-.08*Math.random(),
+               r:2+Math.random()*2.5, pulse:Math.random()*Math.PI*2, ps:.025+Math.random()*.02,
+               a:.12+Math.random()*.10,
+               col:['#7dd3fc','#67e8f9','#a5f3fc'][Math.floor(Math.random()*3)], t:'orb' };
+    } else if (z === 3) {
+      // Sonnenkorona: Strahlen von rechts oben – y korrekt camY-relativ
+      const ang = Math.PI*(.52+Math.random()*.42);
+      const spd = 1.6+Math.random()*1.4;
+      return { x:W+8, y:camY + Math.random()*H*.65,
+               vx:-Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+               len:10+Math.random()*16, r:.75,
+               a:.16+Math.random()*.12,
+               col:['#fbbf24','#fb923c','#fde68a'][Math.floor(Math.random()*3)], t:'streak' };
+    } else {
+      // Hyperraum: radialer Warp vom Bildschirmzentrum – y korrekt camY-relativ
+      const ang = Math.random()*Math.PI*2;
+      const d = 12+Math.random()*32;
+      const spd = 2.4+Math.random()*2.2;
+      return { x:W/2+Math.cos(ang)*d, y:camY+H/2+Math.sin(ang)*d,
+               vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+               len:8+Math.random()*16, r:.7,
+               a:.18+Math.random()*.13,
+               col:['#f0f2f8','#a5f3fc','#e879f9'][Math.floor(Math.random()*3)], t:'streak' };
+    }
+  }
+
+  function tickAmbients(z) {
+    if (z === 0) { ambients = []; return; }
+    // Hyperraum braucht mehr Partikel für dichten Warp-Effekt
+    const tgt = z === 1 ? 10 : z === 2 ? 10 : z === 3 ? 12 : 16;
+    if (ambients.length < tgt) ambients.push(mkAmbient(z));
+    ambients.forEach(a => {
+      a.x += a.vx; a.y += a.vy;
+      if (a.t === 'curtain') a.phase += a.spd;
+      if (a.t === 'orb')     a.pulse += a.ps;
+    });
+    // Nur sichtbare behalten (Bildschirmkoordinaten prüfen)
+    ambients = ambients.filter(a => {
+      const sy = a.y - camY;
+      return sy > -80 && sy < H + 80 && a.x > -30 && a.x < W + 30;
+    });
+  }
+
+  function drawAmbients(blend) {
+    if (!ambients.length) return;
+    ambients.forEach(a => {
+      const sy = a.y - camY;
+      const alpha = a.a * blend;
+      if (a.t === 'curtain') {
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = a.col; ctx.lineWidth = a.w;
+        ctx.beginPath();
+        const sx = a.x + Math.sin(a.phase) * 6;
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + Math.sin(a.phase + 1.3) * 5, sy + a.h);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      } else if (a.t === 'orb') {
+        const pr = a.r * (1 + .3 * Math.sin(a.pulse));
+        ctx.shadowColor = a.col; ctx.shadowBlur = pr * 6;
+        ctx.globalAlpha = alpha * .55;
+        ctx.fillStyle = a.col;
+        ctx.beginPath(); ctx.arc(a.x, sy, pr, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = alpha * .4;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(a.x, sy, pr * .32, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = a.col; ctx.lineWidth = a.r * 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(a.x, sy);
+        ctx.lineTo(a.x - a.vx * a.len, sy - a.vy * a.len);
+        ctx.stroke();
+        ctx.lineWidth = 1; ctx.lineCap = 'butt';
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function showOverlay(which) {
+    const ov = document.getElementById('game-overlay');
+    if (!ov) return;
+    ov.style.display = 'flex';
+    const idle = document.getElementById('go-idle');
+    const dead = document.getElementById('go-dead');
+    if (idle) idle.style.display = which === 'idle' ? '' : 'none';
+    if (dead) dead.style.display = which === 'dead' ? '' : 'none';
+    if (which === 'dead') {
+      const sc  = document.getElementById('go-score');
+      const rec = document.getElementById('go-record');
+      const nr  = document.getElementById('go-newrecord');
+      if (sc)  sc.textContent  = score + 'm';
+      if (rec) rec.textContent = 'Rekord: ' + hi + 'm';
+      if (nr)  nr.style.display = (score > 0 && score >= hi) ? '' : 'none';
+    }
+  }
+
+  function hideOverlay() {
+    const ov = document.getElementById('game-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  function startGame() { state = 'playing'; reset(); hideOverlay(); }
+
+  function goToNews() {
+    const nb = document.querySelector('.tab-btn[data-tab="news"]');
+    if (nb) nb.click();
   }
 
   function update() {
@@ -653,37 +1073,47 @@ document.addEventListener('DOMContentLoaded', () => {
     let mvx = 0;
     if (keys['ArrowLeft']  || keys['a'] || keys['A']) mvx = -SPEED;
     if (keys['ArrowRight'] || keys['d'] || keys['D']) mvx =  SPEED;
-    if (touchX !== null) mvx = touchDX * 0.13;
-    player.vx = player.vx * 0.7 + mvx * 0.3;
+    if (touchX !== null) mvx = touchDX * 0.14;
+    player.vx = player.vx * 0.72 + mvx * 0.28;
+    const prevY = player.y;
     player.vy += GRAV;
     player.x  += player.vx;
     player.y  += player.vy;
     if (player.x + PLW < 0) player.x = W;
     if (player.x > W)       player.x = -PLW;
     const sy = player.y - camY;
-    if (sy < H * 0.38) { const d = H * 0.38 - sy; camY -= d; totalH += d; score = Math.round(totalH / 8); }
+    if (sy < H * 0.38) { const d = H * 0.38 - sy; camY -= d; totalH += d; score = Math.round(totalH / 7); }
     if (player.vy > 0) {
+      const prevBottom = prevY + PLH;
+      const currBottom = player.y + PLH;
+      const pleft  = player.x + PLW * 0.15;
+      const pright = pleft + PLW * 0.7;
       for (const p of platforms) {
-        const ps = p.y - camY;
-        const px = player.x + PLW * 0.1, pw = PLW * 0.8;
-        if (px + pw > p.x && px < p.x + PTW &&
-            player.y + PLH >= ps && player.y + PLH <= ps + PTH + player.vy + 1) {
-          player.y = ps - PLH;
-          player.vy = p.type === 'bounce' ? JUMP * 1.38 : JUMP;
-          spawnPart(player.x + PLW/2, ps,
+        if (pright > p.x && pleft < p.x + PTW &&
+            prevBottom <= p.y + 2 && currBottom >= p.y) {
+          player.y = p.y - PLH;
+          player.vy = p.type === 'bounce' ? JUMP * 1.35 : JUMP;
+          spawnPart(player.x + PLW/2, p.y,
             p.type === 'move' ? '#8b72f8' : p.type === 'bounce' ? '#10b981' : '#5b9cf6');
+          break;
         }
       }
     }
     platforms.forEach(p => { if (p.type === 'move') { p.x += p.vx; if (p.x < 0 || p.x + PTW > W) p.vx *= -1; }});
     platforms = platforms.filter(p => p.y - camY < H + 60);
     const top = Math.min(...platforms.map(p => p.y));
-    while (platforms.length < 18) platforms.push(mkPlat(top - 72 - Math.random() * 32));
-    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .12; p.life -= p.decay; });
+    while (platforms.length < 18) platforms.push(mkPlat(top - 68 - Math.random() * 28, platforms));
+    particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .1; p.life -= p.decay; });
     particles = particles.filter(p => p.life > 0);
+    // Zonen-Übergang: sanft über ~2s (120 frames)
+    const newZ = Math.min(4, Math.floor(score / 200));
+    if (newZ !== toZone) { fromZone = toZone; toZone = newZ; zoneBlend = 0; ambients = []; }
+    if (zoneBlend < 1) zoneBlend = Math.min(1, zoneBlend + 0.008);
+    tickAmbients(toZone);
     if (player.y - camY > H + 80) {
       state = 'dead';
       if (score > hi) { hi = score; localStorage.setItem('jump_hi', hi); }
+      showOverlay('dead');
     }
   }
 
@@ -696,18 +1126,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function draw() {
-    ctx.fillStyle = '#08090e'; ctx.fillRect(0, 0, W, H);
-    // Sterne
+    const zA = ZONES[fromZone], zB = ZONES[toZone], b = zoneBlend;
+    // ── Hintergrund: alte Zone → neue Zone überblenden
+    ctx.fillStyle = zA.bg; ctx.fillRect(0, 0, W, H);
+    if (b < 1) {
+      ctx.globalAlpha = b; ctx.fillStyle = zB.bg; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    }
+    // Tints einblenden
+    if (zA.tint && b < 1) {
+      ctx.fillStyle = zA.tint; ctx.globalAlpha = 1 - b; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    }
+    if (zB.tint) {
+      ctx.fillStyle = zB.tint; ctx.globalAlpha = b; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    }
+    // ── Sterne: Farbe zwischen Zonen überblenden
     const off = (camY * .12) % (H * 4 + 200);
     stars.forEach(s => {
       const sy = ((s.y + off) % (H * 4 + 200)) - 100;
       if (sy < -4 || sy > H + 4) return;
-      ctx.globalAlpha = s.a * (.6 + .4 * Math.sin(Date.now()/1400 + s.x));
-      ctx.fillStyle = '#f0f2f8';
+      const al = s.a * (.6 + .4 * Math.sin(Date.now()/1400 + s.x));
+      if (b < 1 && zA.starC !== zB.starC) {
+        ctx.globalAlpha = al * (1 - b); ctx.fillStyle = zA.starC;
+        ctx.beginPath(); ctx.arc(s.x, sy, s.r, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = al * b; ctx.fillStyle = zB.starC;
       ctx.beginPath(); ctx.arc(s.x, sy, s.r, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
-    // Plattformen
+    // ── Ambients einblenden (erscheinen sanft mit zoneBlend)
+    drawAmbients(b);
+    // ── Plattformen
     const cols = { normal:['#5b9cf6','#3a7bd5'], move:['#8b72f8','#6a50d8'], bounce:['#10b981','#0d9268'] };
     platforms.forEach(p => {
       const ps = p.y - camY;
@@ -715,82 +1163,45 @@ document.addEventListener('DOMContentLoaded', () => {
       const [c1, c2] = cols[p.type] || cols.normal;
       const g = ctx.createLinearGradient(p.x, ps, p.x, ps + PTH);
       g.addColorStop(0, c1); g.addColorStop(1, c2);
-      ctx.fillStyle = g; ctx.shadowColor = c1; ctx.shadowBlur = 10;
-      rr(p.x, ps, PTW, PTH, 5); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = g; ctx.shadowColor = c1; ctx.shadowBlur = 8;
+      rr(p.x, ps, PTW, PTH, 4); ctx.fill(); ctx.shadowBlur = 0;
     });
-    // Partikel
+    // ── Partikel
     particles.forEach(p => {
       ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.col;
       ctx.beginPath(); ctx.arc(p.x, p.y - camY, p.r, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1;
-    // Spieler
+    // ── Spieler
     const px = player.x, ps2 = player.y - camY;
     const g2 = ctx.createRadialGradient(px+PLW/2, ps2+PLH/2, 2, px+PLW/2, ps2+PLH/2, PLW/2);
     g2.addColorStop(0,'#ffffff'); g2.addColorStop(.45,'#5b9cf6'); g2.addColorStop(1,'#8b72f8');
-    ctx.fillStyle = g2; ctx.shadowColor = '#5b9cf6'; ctx.shadowBlur = 16;
-    rr(px, ps2, PLW, PLH, 7); ctx.fill(); ctx.shadowBlur = 0;
-    // HUD Score
-    ctx.fillStyle = 'rgba(13,15,24,.78)'; rr(10,10,100,48,8); ctx.fill();
-    ctx.fillStyle = '#5b9cf6'; ctx.font = 'bold 9px Inter,sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('HÖHE', 20, 26);
-    ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 17px Inter,sans-serif';
-    ctx.fillText(score + 'm', 20, 47);
-    // HUD Highscore
-    ctx.fillStyle = 'rgba(13,15,24,.78)'; rr(W-110,10,100,48,8); ctx.fill();
-    ctx.fillStyle = '#8b72f8'; ctx.font = 'bold 9px Inter,sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText('REKORD', W-20, 26);
-    ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 17px Inter,sans-serif';
-    ctx.fillText(hi + 'm', W-20, 47);
+    ctx.fillStyle = g2; ctx.shadowColor = '#5b9cf6'; ctx.shadowBlur = 12;
+    rr(px, ps2, PLW, PLH, 5); ctx.fill(); ctx.shadowBlur = 0;
+    // ── HUD
+    ctx.fillStyle = 'rgba(13,15,24,.82)'; rr(7,7,80,38,6); ctx.fill();
+    ctx.fillStyle = '#5b9cf6'; ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('H\u00d6HE', 15, 21);
+    ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 14px Inter,sans-serif';
+    ctx.fillText(score + 'm', 15, 37);
+    ctx.fillStyle = 'rgba(13,15,24,.82)'; rr(W-87,7,80,38,6); ctx.fill();
+    ctx.fillStyle = '#8b72f8'; ctx.font = 'bold 8px Inter,sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('REKORD', W-15, 21);
+    ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 14px Inter,sans-serif';
+    ctx.fillText(hi + 'm', W-15, 37);
     ctx.textAlign = 'left';
-    // Overlays
-    if (state === 'idle' || state === 'dead') {
-      ctx.fillStyle = 'rgba(8,9,14,.8)'; ctx.fillRect(0,0,W,H);
-      ctx.textAlign = 'center';
-      if (state === 'idle') {
-        ctx.shadowColor = '#5b9cf6'; ctx.shadowBlur = 22;
-        ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 36px Inter,sans-serif'; ctx.fillText('STELLAR', W/2, H/2-52);
-        ctx.fillStyle = '#5b9cf6'; ctx.font = 'bold 36px Inter,sans-serif'; ctx.fillText('JUMP', W/2, H/2-12);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#b8bdd4'; ctx.font = '13px Inter,sans-serif'; ctx.fillText('Leertaste drücken oder tippen', W/2, H/2+28);
-        ctx.fillStyle = '#6b7194'; ctx.font = '12px Inter,sans-serif'; ctx.fillText('← → zum Steuern', W/2, H/2+50);
-        ctx.font = '11px Inter,sans-serif';
-        ctx.fillStyle = '#5b9cf6'; ctx.fillText('■ Normal', W/2-75, H/2+88);
-        ctx.fillStyle = '#8b72f8'; ctx.fillText('■ Bewegt', W/2+2,  H/2+88);
-        ctx.fillStyle = '#10b981'; ctx.fillText('■ Boost',  W/2+78, H/2+88);
-      } else {
-        ctx.shadowColor = '#f87171'; ctx.shadowBlur = 14;
-        ctx.fillStyle = '#f87171'; ctx.font = 'bold 27px Inter,sans-serif'; ctx.fillText('GAME OVER', W/2, H/2-56);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#f0f2f8'; ctx.font = 'bold 26px Inter,sans-serif'; ctx.fillText(score + 'm', W/2, H/2-12);
-        ctx.fillStyle = '#8b72f8'; ctx.font = '13px Inter,sans-serif'; ctx.fillText('Rekord: ' + hi + 'm', W/2, H/2+16);
-        if (score > 0 && score >= hi) {
-          ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 10;
-          ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 13px Inter,sans-serif'; ctx.fillText('NEUER REKORD!', W/2, H/2+40);
-          ctx.shadowBlur = 0;
-        }
-        ctx.fillStyle = '#5b9cf6'; ctx.font = 'bold 13px Inter,sans-serif'; ctx.fillText('Nochmal? Leertaste / Tippen', W/2, H/2+66);
-      }
-      ctx.textAlign = 'left';
-    }
   }
 
-  function loop() { update(); draw(); animFrame = requestAnimationFrame(loop); }
+  function loop() { update(); draw(); requestAnimationFrame(loop); }
 
-  // Eingabe
   document.addEventListener('keydown', e => {
     keys[e.key] = true;
-    if (e.key === ' ' && document.getElementById('tab-game') &&
-        !document.getElementById('tab-game').classList.contains('tab-hidden')) {
-      e.preventDefault();
-      if (state !== 'playing') { state = 'playing'; reset(); }
-    }
+    if (e.key === ' ' && state === 'playing') e.preventDefault();
   });
   document.addEventListener('keyup', e => { delete keys[e.key]; });
   canvas.addEventListener('touchstart', e => {
-    touchX = e.touches[0].clientX;
-    if (state !== 'playing') { state = 'playing'; reset(); }
-    e.preventDefault();
+    if (state !== 'playing') return;
+    touchX = e.touches[0].clientX; e.preventDefault();
   }, {passive:false});
   canvas.addEventListener('touchmove', e => {
     if (touchX !== null) touchDX = e.touches[0].clientX - touchX;
@@ -798,11 +1209,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }, {passive:false});
   canvas.addEventListener('touchend', () => { touchDX = 0; touchX = null; });
 
+  document.addEventListener('DOMContentLoaded', () => {
+    const bs = document.getElementById('btn-start');
+    const bj = document.getElementById('btn-ja');
+    const bn = document.getElementById('btn-nein');
+    if (bs) bs.addEventListener('click', startGame);
+    if (bj) bj.addEventListener('click', startGame);
+    if (bn) bn.addEventListener('click', goToNews);
+  });
+
   let gameStarted = false;
   window.addEventListener('resize', () => { if (gameStarted) resize(); });
   window.initGame = function() {
     resize();
-    if (!gameStarted) { gameStarted = true; reset(); loop(); }
+    if (!gameStarted) { gameStarted = true; showOverlay('idle'); loop(); }
   };
 })();
 </script>
@@ -824,19 +1244,14 @@ self.addEventListener("fetch", e => {
 # ── HTML-Bausteine ─────────────────────────────────────────────────────────────
 
 def build_filter_bar(results):
-    all_cats = list(CAT_EMOJI.keys())
     sb = '<button class="flt-btn active" data-filter="source" data-val="all">Alle <span class="flt-count"></span></button>'
     for r in results:
         n = html_module.escape(r["name"])
-        sb += f'<button class="flt-btn" data-filter="source" data-val="{n}">{r["emoji"]} {n} <span class="flt-count">0</span></button>'
-    cb = '<button class="flt-btn active" data-filter="cat" data-val="all">Alle <span class="flt-count"></span></button>'
-    for cat in all_cats:
-        cb += f'<button class="flt-btn" data-filter="cat" data-val="{html_module.escape(cat)}">{html_module.escape(cat)} <span class="flt-count">0</span></button>'
+        sb += f'<button class="flt-btn" data-filter="source" data-val="{n}">{n} <span class="flt-count">0</span></button>'
     return (
         f'<div class="filter-bar" id="filter-bar">'
         f'<div class="filter-inner">'
-        f'<div class="filter-row"><span class="filter-label">Quelle</span>{sb}</div>'
-        f'<div class="filter-row"><span class="filter-label">Kategorie</span>{cb}</div>'
+        f'<div class="filter-row">{sb}</div>'
         f'<div class="filter-footer">'
         f'<div id="filter-result"></div>'
         f'<button id="clear-btn">&#10005; Zurücksetzen &nbsp;<kbd style="font-size:.55rem;opacity:.6">ESC</kbd></button>'
@@ -887,11 +1302,22 @@ def build_page(results, weather, now):
     monat = MONATE[now.month - 1]
     ds    = f"{now.strftime('%d.')} {monat} {now.strftime('%Y')}"
     ts    = now.strftime("%H:%M")
-    total = sum(r["count"] for r in results)
-    de_c  = "".join(build_card(r) for r in results if r["country"] == "DE")
-    en_c  = "".join(build_card(r) for r in results if r["country"] == "EN")
-    whtml = build_weather_html(weather)
+    h     = now.hour
+    if   5 <= h < 10: greeting = "Guten Morgen"
+    elif 10 <= h < 13: greeting = "Was ist los?"
+    elif 13 <= h < 18: greeting = "Guten Nachmittag"
+    elif 18 <= h < 22: greeting = "Guten Abend"
+    else:              greeting = "Noch wach?"
+    if   5 <= h <  9: tod = "tod-morning"
+    elif 17 <= h < 21: tod = "tod-evening"
+    elif h >= 21 or h < 5: tod = "tod-night"
+    else:              tod = "tod-day"
+    unified = build_unified_feed(results)
+    total   = len(unified)
+    feed_html = build_feed_html(unified)
+    whtml = build_weather_html(weather, tod)
     fbar  = build_filter_bar(results)
+    src_names = " &middot; ".join(r["name"] for r in results)
     return (
         "<!DOCTYPE html><html lang='de'><head>"
         "<meta charset='UTF-8'>"
@@ -912,7 +1338,8 @@ def build_page(results, weather, now):
         "<div class='hdr'><div class='hdr-inner'>"
         "<div class='hdr-left'>"
         "<h1>&#128240; Daily Briefing</h1>"
-        f"<div class='hdr-meta'>{wd}, {ds} &middot; {ts} Uhr &middot; Politik &middot; Wirtschaft &middot; EU/Welt</div>"
+        f"<div class='hdr-greeting'>{greeting}</div>"
+        f"<div class='hdr-meta'>{wd}, {ds} &middot; {ts} Uhr</div>"
         "</div>"
         "<div class='hdr-right'>"
         f"<span class='pill-ac'>&#128240; {total} Artikel</span>"
@@ -924,7 +1351,10 @@ def build_page(results, weather, now):
         "<div class='tab-nav'>"
         "<button class='tab-btn tab-active' data-tab='news'>&#128240; News</button>"
         "<button class='tab-btn' data-tab='game'>&#127918; Spiel</button>"
-        "</div>"
+        "<div class='tab-right'>"
+        "<button class='view-btn' id='compact-btn' title='Kompaktansicht'>&#8803;</button>"
+        "<button class='view-btn' id='theme-btn' title='Hell/Dunkel'>&#9788;</button>"
+        "</div></div>"
 
         # Filter-Bar (nur News-Tab)
         f"{fbar}"
@@ -933,22 +1363,35 @@ def build_page(results, weather, now):
         "<div id='tab-news' class='tab-content'>"
         f"{whtml}"
         "<div class='wrap'>"
-        "<div class='slabel'>\U0001f1e9\U0001f1ea Deutschland &amp; Europa</div>"
-        f"<div class='grid'>{de_c}</div>"
-        "<div class='slabel'>\U0001f310 International</div>"
-        f"<div class='grid'>{en_c}</div>"
+        f"{feed_html}"
         '<div id="no-results"><div class="nr-icon">\U0001f50d</div><div class="nr-text">Keine Artikel für diesen Filter.</div></div>'
-        f"<div class='foot'>Stand: {wd}, {ds} &middot; {ts} Uhr &middot; Tagesschau &middot; Spiegel &middot; BBC &middot; DW &middot; Wetter: open-meteo.com</div>"
+        f"<div class='foot'>{src_names} &middot; Wetter: open-meteo.com</div>"
         "</div></div>"
 
         # Tab: Spiel
         "<div id='tab-game' class='tab-content tab-hidden'>"
         "<div class='game-wrap'>"
+        "<div id='game-ui'>"
         "<canvas id='game-canvas'></canvas>"
-        "<div class='game-hint'>"
-        "<kbd>&#8592;</kbd> <kbd>&#8594;</kbd> oder <kbd>A</kbd> <kbd>D</kbd> steuern &nbsp;&middot;&nbsp; "
-        "<kbd>Leertaste</kbd> starten &nbsp;&middot;&nbsp; Auf dem Handy tippen &amp; wischen"
-        "</div></div></div>"
+        "<div class='game-overlay' id='game-overlay' style='display:none'>"
+        "<div class='go-inner' id='go-idle'>"
+        "<div class='go-title'>STELLAR JUMP</div>"
+        "<div class='go-sub'>Springe von Plattform zu Plattform &ndash; so hoch wie m&ouml;glich!</div>"
+        "<div class='go-keys'><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> steuern &nbsp;&middot;&nbsp; Handy: wischen</div>"
+        "<button class='go-btn' id='btn-start'>&#9654; Starten</button>"
+        "</div>"
+        "<div class='go-inner' id='go-dead' style='display:none'>"
+        "<div class='go-gameover'>GAME OVER</div>"
+        "<div class='go-score-val' id='go-score'></div>"
+        "<div class='go-record' id='go-record'></div>"
+        "<div class='go-newrecord' id='go-newrecord' style='display:none'>&#127942; NEUER REKORD!</div>"
+        "<div class='go-ask'>M&ouml;chtest du nochmal spielen?</div>"
+        "<div class='go-btns'>"
+        "<button class='go-btn' id='btn-ja'>Ja</button>"
+        "<button class='go-btn go-btn-sec' id='btn-nein'>Nein</button>"
+        "</div></div>"
+        "</div></div>"
+        "</div></div>"
 
         f"{JS}"
         "</body></html>"
@@ -977,8 +1420,21 @@ def main():
         # Chronologisch sortieren: neueste zuerst
         filtered.sort(key=sort_key_dt, reverse=True)
         # Kategorie zuweisen
+        hard = PINNED_HARD.get(feed["name"])
+        soft = PINNED_SOFT.get(feed["name"])
+        accepted = []
         for item in filtered:
-            item["category"] = categorize(item["title"], item.get("desc", ""))
+            if hard:
+                txt = (item["title"] + " " + item.get("desc", "")).lower()
+                if any(k in txt for k in WIRTSCHAFT_REQUIRED):
+                    item["category"] = hard
+                    accepted.append(item)
+                # kein Wirtschafts-Keyword → Artikel verwerfen
+            else:
+                cat = categorize(item["title"], item.get("desc", ""))
+                item["category"] = soft if (soft and cat == "Sonstiges") else cat
+                accepted.append(item)
+        filtered = accepted
         print(f"{len(filtered)} Artikel")
         results.append({"name":feed["name"],"country":feed["country"],
                         "emoji":feed["emoji"],"items":filtered,
